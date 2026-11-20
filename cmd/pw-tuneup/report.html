@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PW Tune-up · {{.Sys.Host}}</title>
+<style>
+:root{--bg:#0f1113;--panel:#171a1d;--line:#2a2f34;--ink:#e6e2d8;--mute:#8d9299;--accent:#d9b84a;--ok:#6fbf73;--warn:#e0a24a;--bad:#d95f5f;
+--mono:ui-monospace,"Cascadia Mono",Consolas,monospace;--sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}html{background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans)}body{margin:0}
+main{max-width:1000px;margin:0 auto;padding:1.5rem 1.25rem 4rem}
+h1{font-size:1.5rem;margin:0}h2{font-size:.95rem;margin:2rem 0 .6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--mute)}
+.meta{color:var(--mute);font-family:var(--mono);font-size:.82em}
+.head{display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:1rem}
+.score{font-family:var(--mono);font-size:2.4rem;font-weight:700;line-height:1}.score small{font-size:.9rem;color:var(--mute)}
+.score.good{color:var(--ok)}.score.mid{color:var(--warn)}.score.low{color:var(--bad)}
+.counts span{font-family:var(--mono);font-size:.85em;margin-right:1rem}
+.f{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--mute);border-radius:4px;padding:.7rem .9rem;margin-bottom:.6rem}
+.f.bad{border-left-color:var(--bad)}.f.warn{border-left-color:var(--warn)}.f.ok{border-left-color:var(--ok)}
+.f b{display:block}.f .area{font-family:var(--mono);font-size:.72em;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);float:right}
+.f p{margin:.25rem 0 0;font-size:.93em}.f .manual{color:var(--mute)}.f .fix{font-family:var(--mono);font-size:.8em;color:var(--accent)}
+.res{font-family:var(--mono);font-size:.85em}.res .ok{color:var(--ok)}.res .no{color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.9em;margin-bottom:.5rem}
+th,td{text-align:left;padding:.3rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:500;font-size:.8em;text-transform:uppercase;letter-spacing:.06em}
+td.num{text-align:right;font-family:var(--mono)}
+.off td{color:var(--mute)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}@media(max-width:760px){.grid{grid-template-columns:1fr}}
+details{margin-top:2rem}summary{cursor:pointer;color:var(--mute)}pre{white-space:pre-wrap;font-size:.75em;color:var(--mute)}
+footer{color:var(--mute);font-size:.78em;font-family:var(--mono);margin-top:3rem}
+</style>
+</head>
+<body>
+<main>
+<div class="head">
+  <div class="score {{.ScoreClass}}">{{.Score}}<small>/100</small><div style="font-size:.8rem;margin-top:.3rem">{{.Verdict}}</div></div>
+  <div>
+    <h1>{{.Sys.Host}}</h1>
+    <div class="meta">{{.Sys.Model}} · {{.Sys.CPU}} · {{printf "%.0f" .Sys.RAMGB}} GB · {{.Sys.OS}} {{.Sys.Version}} ({{.Sys.Build}}, {{.Sys.Arch}})</div>
+    <div class="meta">checked {{.When}} as {{.Sys.User}}{{if .Sys.Elevated}} (administrator){{else}} (not administrator){{end}} · pw-tuneup {{.Version}}</div>
+    <div class="counts"><span style="color:var(--bad)">{{.Count.bad}} problem(s)</span><span style="color:var(--warn)">{{.Count.warn}} warning(s)</span><span>{{.Count.info}} note(s)</span></div>
+  </div>
+</div>
+
+{{if .Results}}
+<h2>Fixes applied</h2>
+<div class="res">
+{{range .Results}}<div>{{if .Dry}}<span>dry run</span>{{else if .OK}}<span class="ok">done</span>{{else}}<span class="no">failed</span>{{end}} · {{.Label}}: {{.Msg}}</div>{{end}}
+</div>
+{{end}}
+
+<h2>Findings</h2>
+{{range .Findings}}
+<div class="f {{.Sev}}"><span class="area">{{.Area}}</span><b>{{.Title}}</b>
+{{if .Detail}}<p>{{.Detail}}</p>{{end}}
+{{if .Manual}}<p class="manual">{{.Manual}}</p>{{end}}
+{{if .Fix}}<p class="fix">fixable by pw-tuneup: {{.FixLabel}}</p>{{end}}
+</div>
+{{end}}
+
+<div class="grid">
+<div>
+<h2>Disks</h2>
+<table><tr><th>Drive</th><th>Type</th><th>Health</th><th class="num">Size</th></tr>
+{{range .Raw.Disks.Physical}}<tr><td>{{.Name}}</td><td>{{.Media}} {{.Bus}}</td><td>{{.Health}}{{if .Wear}} · {{deref .Wear}}% worn{{end}}{{if .TempC}} · {{deref .TempC}} C{{end}}</td><td class="num">{{printf "%.0f" .SizeGB}} GB</td></tr>{{end}}
+</table>
+<table><tr><th>Volume</th><th class="num">Free</th><th class="num">Size</th></tr>
+{{range .Raw.Disks.Volumes}}<tr><td>{{.Letter}}: {{.Label}}{{if .Windows}} · Windows{{end}}</td><td class="num">{{printf "%.0f" .FreeGB}} GB</td><td class="num">{{printf "%.0f" .SizeGB}} GB</td></tr>{{end}}
+</table>
+</div>
+<div>
+<h2>Busiest right now</h2>
+<table><tr><th>Process</th><th class="num">CPU</th><th class="num">Memory</th></tr>
+{{range .Raw.Load.TopCPU}}<tr><td>{{.Name}}{{if gt .Count 1}} ×{{.Count}}{{end}}</td><td class="num">{{printf "%.1f" .CPU}}%</td><td class="num">{{printf "%.0f" .MemMB}} MB</td></tr>{{end}}
+</table>
+<h2>Most memory</h2>
+<table><tr><th>Process</th><th class="num">Memory</th></tr>
+{{range .Raw.Load.TopMem}}<tr><td>{{.Name}}{{if gt .Count 1}} ×{{.Count}}{{end}}</td><td class="num">{{printf "%.0f" .MemMB}} MB</td></tr>{{end}}
+</table>
+</div>
+</div>
+
+<h2>Startup apps</h2>
+<table><tr><th>App</th><th>Where</th><th>State</th></tr>
+{{range .Raw.Startup}}<tr{{if not .Enabled}} class="off"{{end}}><td>{{.Name}}</td><td>{{loc .Location}}</td><td>{{if .Enabled}}on{{else}}off{{end}}</td></tr>{{end}}
+</table>
+
+<h2>Graphics and network drivers</h2>
+<table><tr><th>Device</th><th>Version</th><th>Date</th></tr>
+{{range .Raw.Drivers.Devices}}<tr><td>{{.Name}}</td><td>{{.Version}}</td><td>{{.Date}}</td></tr>{{end}}
+</table>
+
+{{with .Raw.Battery}}
+<h2>Battery</h2>
+<table><tr><td>Charge</td><td>{{.ChargePct}}%</td></tr>{{if .HealthPct}}<tr><td>Health</td><td>{{derefi .HealthPct}}% of design ({{derefi .FullMWh}} of {{derefi .DesignMWh}} mWh){{if .Cycles}}, {{derefi .Cycles}} cycles{{end}}</td></tr>{{end}}</table>
+{{end}}
+
+{{with .Raw.Network}}
+<h2>Network</h2>
+<table>
+{{with .Wifi}}<tr><td>Wi-Fi</td><td>{{.SSID}} · {{.Radio}} · {{.Band}} ch {{.Channel}} · {{if .Signal}}{{derefi .Signal}}%{{end}} · {{.RxMbps}} Mbps · {{.Auth}}</td></tr>{{end}}
+{{range .Connections}}<tr><td>{{.Alias}}</td><td>{{.Name}} · {{.Category}} · {{.IPv4}}</td></tr>{{end}}
+<tr><td>VPN / fleet</td><td>{{if .Tailscale}}{{if .Tailscale.Up}}connected {{.Tailscale.IP}}{{else}}installed, not connected{{end}}{{else}}not installed{{end}} · Sentinel {{if .Sentinel}}enrolled{{else}}not enrolled{{end}}</td></tr>
+</table>
+{{end}}
+
+<details><summary>Everything collected (JSON)</summary><pre>{{.RawJSON}}</pre></details>
+<footer>pw-tuneup {{.Version}} · reads everything, changes only what you said yes to · github.com/printedwicked/pc-tuneup</footer>
+</main>
+</body>
+</html>
